@@ -1043,7 +1043,7 @@ namespace Data.Linq
 		}
 
 		[Test]
-		public void GrooupByAssociation3()
+		public void GrooupByAssociation3([IncludeDataContexts("Northwind")] string context)
 		{
 			using (var db = new NorthwindDB())
 			{
@@ -1059,7 +1059,7 @@ namespace Data.Linq
 		}
 
 		[Test]
-		public void GrooupByAssociation4()
+		public void GrooupByAssociation4([IncludeDataContexts("Northwind")] string context)
 		{
 			using (var db = new NorthwindDB())
 			{
@@ -1119,7 +1119,7 @@ namespace Data.Linq
 		}
 
 		[Test]
-		public void GroupByAggregate2()
+		public void GroupByAggregate2([IncludeDataContexts("Northwind")] string context)
 		{
 			using (var db = new NorthwindDB())
 				AreEqual(
@@ -1358,13 +1358,13 @@ namespace Data.Linq
 		}
 
 		[Test, Category("MySql")]
-		public void GroupByExtraFieldBugTest()
+		public void GroupByExtraFieldBugTest([IncludeDataContexts(ProviderName.MySql)] string context)
 		{
 			// https://github.com/igor-tkachev/bltoolkit/issues/42
 			// extra field is generated in the GROUP BY clause, for example:
 			// GROUP BY p.LastName, p.LastName <--- the second one is redundant
 
-			using (var db = new TestDbManager("MySql"))
+			using (var db = new TestDbManager(context))
 			{
 				var q =
 					from d in db.Doctor
@@ -1467,6 +1467,68 @@ namespace Data.Linq
 				AreEqual(
 					   Doctor.GroupBy(s => s.PersonID).Select(s => s.Select(d => d.Taxonomy).First()),
 					db.Doctor.GroupBy(s => s.PersonID).Select(s => s.Select(d => d.Taxonomy).First()));
+			}
+		}
+
+		[Test]
+		public void CalcMember([DataContexts] string context)
+		{
+			using (var db = GetDataContext(context))
+			{
+				AreEqual(
+					from parent in Parent
+					from child  in Person
+					where child.ID == parent.ParentID
+					let data = new
+					{
+						parent.Value1,
+						Value = child.FirstName == "John" ? child.FirstName : "a"
+					}
+					group data by data.Value into groupedData
+					select new
+					{
+						groupedData.Key,
+						Count = groupedData.Count()
+					},
+					from parent in db.Parent
+					from child  in db.Person
+					where child.ID == parent.ParentID
+					let data = new
+					{
+						parent.Value1,
+						Value = child.FirstName == "John" ? child.FirstName : "a"
+					}
+					group data by data.Value into groupedData
+					select new
+					{
+						groupedData.Key,
+						Count = groupedData.Count()
+					});
+			}
+		}
+
+		[Test]
+		public void GroupByDate([DataContexts] string context)
+		{
+			using (var db = GetDataContext(context))
+			{
+				AreEqual(
+					from t in Types2
+					group t by new { t.DateTimeValue.Value.Month, t.DateTimeValue.Value.Year } into grp
+					select new
+					{
+						Total = grp.Sum(_ => _.MoneyValue),
+						year  = grp.Key.Year,
+						month = grp.Key.Month
+					},
+					from t in db.Types2
+					group t by new { t.DateTimeValue.Value.Month, t.DateTimeValue.Value.Year } into grp
+					select new
+					{
+						Total = grp.Sum(_ => _.MoneyValue),
+						year  = grp.Key.Year,
+						month = grp.Key.Month
+					});
 			}
 		}
 	}

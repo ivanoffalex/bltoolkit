@@ -111,6 +111,7 @@
     <Compile Include="DataAccess\NonUpdatableAttribute.cs" />
     <Compile Include="DataAccess\PrimaryKeyAttribute.cs" />
     <Compile Include="DataAccess\ScalarAttribute.cs" />
+    <Compile Include="DataAccess\SequenceKeyGenerator.cs" />
     <Compile Include="DataAccess\SqlIgnoreAttribute.cs" />
     <Compile Include="DataAccess\TableNameAttribute.cs" />
     <Compile Include="Data\DataProvider\ConvertType.cs" />
@@ -118,6 +119,7 @@
     <Compile Include="Data\IDataReaderEx.cs" />
     <Compile Include="Data\Linq\Builder\AggregationBuilder.cs" />
     <Compile Include="Data\Linq\Builder\AllAnyBuilder.cs" />
+    <Compile Include="Data\Linq\Builder\AsUpdatableBuilder.cs" />
     <Compile Include="Data\Linq\Builder\BuildInfo.cs" />
     <Compile Include="Data\Linq\Builder\CastBuilder.cs" />
     <Compile Include="Data\Linq\Builder\ChangeTypeExpression.cs" />
@@ -177,7 +179,7 @@
     <Compile Include="Data\Linq\IQueryContext.cs" />
     <Compile Include="Data\Linq\ISelectInsertable.cs" />
     <Compile Include="Data\Linq\ITable.cs" />
-    <Compile Include="Data\Linq\IUpdateable.cs" />
+    <Compile Include="Data\Linq\IUpdatable.cs" />
     <Compile Include="Data\Linq\IValueInsertable.cs" />
     <Compile Include="Data\Linq\LinqException.cs" />
     <Compile Include="Data\Linq\LinqExtensions.cs" />
@@ -227,6 +229,7 @@
     <Compile Include="Data\Sql\SqlProvider\ISqlProvider.cs" />
     <Compile Include="Data\Sql\SqlProvider\MsSql2005SqlProvider.cs" />
     <Compile Include="Data\Sql\SqlProvider\MsSql2008SqlProvider.cs" />
+    <Compile Include="Data\Sql\SqlProvider\MsSql2012SqlProvider.cs" />
     <Compile Include="Data\Sql\SqlProvider\MSSqlSqlProvider.cs" />
     <Compile Include="Data\Sql\SqlProvider\MySqlSqlProvider.cs" />
     <Compile Include="Data\Sql\SqlProvider\OracleSqlProvider.cs" />
@@ -255,6 +258,7 @@
     <Compile Include="Mapping\DictionaryListMapperT.cs" />
     <Compile Include="Mapping\DictionaryMapper.cs" />
     <Compile Include="Mapping\EnumeratorMapper.cs" />
+    <Compile Include="Mapping\ExpressionMapIgnoreAttribute.cs" />
     <Compile Include="Mapping\ExpressionMapper.cs" />
     <Compile Include="Mapping\IMapDataDestination.cs" />
     <Compile Include="Mapping\IMapDataDestinationList.cs" />

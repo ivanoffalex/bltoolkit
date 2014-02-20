@@ -142,6 +142,20 @@ namespace BLToolkit.Data.DataProvider
 			return SqlProvider.Convert(value, convertType);
 		}
 
+		public override DataExceptionType ConvertErrorNumberToDataExceptionType(int number)
+		{
+			switch (number)
+			{
+				case 1205: return DataExceptionType.Deadlock;
+				case   -2: return DataExceptionType.Timeout;
+				case  547: return DataExceptionType.ForeignKeyViolation;
+				case 2601: return DataExceptionType.UniqueIndexViolation;
+				case 2627: return DataExceptionType.ConstraintViolation;
+			}
+
+			return DataExceptionType.Undefined;
+		}
+
 		/// <summary>
 		/// Returns connection type.
 		/// </summary>
@@ -240,7 +254,7 @@ namespace BLToolkit.Data.DataProvider
 			var idx = insertText.IndexOf('\n');
 			var tbl = insertText.Substring(0, idx).Substring("INSERT INTO ".Length).TrimEnd('\r');
 			var rd  = new BulkCopyReader(members, collection);
-			var bc  = new SqlBulkCopy((SqlConnection)db.Connection)
+            var bc = new SqlBulkCopy((SqlConnection)db.Connection, SqlBulkCopyOptions.Default, (SqlTransaction)db.Transaction)
 			{
 				BatchSize            = maxBatchSize,
 				DestinationTableName = tbl,

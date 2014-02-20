@@ -158,6 +158,11 @@ namespace BLToolkit.Data
 			set { _canRaiseEvents = value; }
 		}
 
+        /// <summary>
+        /// Use plain text query instead of using command parameters
+        /// </summary>
+        public bool UseQueryText { get; set; }
+
 		#endregion
 
 		#region Connection
@@ -620,12 +625,15 @@ namespace BLToolkit.Data
 			return ExecuteOperation(
 				OperationType.ExecuteReader,
 				() =>
-					_dataProvider.GetDataReader(_mappingSchema, SelectCommand.ExecuteReader(commandBehavior)));
+				    {
+				        var dataReader = _dataProvider.GetDataReader(SelectCommand, commandBehavior);
+				        return _dataProvider.GetDataReader(_mappingSchema, dataReader);
+				    });
 		}
 
 		private int ExecuteNonQueryInternal()
 		{
-			return ExecuteOperation<int>(OperationType.ExecuteNonQuery, SelectCommand.ExecuteNonQuery);
+		    return ExecuteOperation<int>(OperationType.ExecuteNonQuery, SelectCommand.ExecuteNonQuery);
 		}
 
 		#endregion
@@ -1596,7 +1604,7 @@ namespace BLToolkit.Data
 
 			parameter.ParameterName = parameterName;
 			parameter.Direction     = parameterDirection;
-			parameter.DbType        = dbType;
+			parameter.DbType        = _dataProvider.GetParameterDbType(dbType);
 
 			_dataProvider.SetParameterValue(parameter, value ?? DBNull.Value);
 
@@ -2622,9 +2630,9 @@ namespace BLToolkit.Data
 							if (value != null && value.GetType().IsEnum)
 								value = MappingSchema.MapEnumToValue(value, true);
 
-                            p = value != null
-                                ? Parameter(baseParameters[i].ParameterName + nRows, value)
-                                : Parameter(baseParameters[i].ParameterName + nRows, DBNull.Value, members[i].GetDbType());
+							p = value != null
+								? Parameter(baseParameters[i].ParameterName + nRows, value)
+								: Parameter(baseParameters[i].ParameterName + nRows, DBNull.Value, members[i].GetDbType());
 						}
 
 						parameters.Add(p);
@@ -2644,11 +2652,16 @@ namespace BLToolkit.Data
 							isPrepared = false;
 
 							var type   = members[i].MemberAccessor.Type;
+							var dbType = members[i].GetDbType();
 
 							if (value.GetType().IsEnum)
 								value = MappingSchema.MapEnumToValue(value, true);
 
-							var p = Parameter(baseParameters[i].ParameterName + nRows, value ?? DBNull.Value/*, dbType*/);
+							IDbDataParameter p;
+							if (dbType != DbType.Object)
+								p = Parameter(baseParameters[i].ParameterName + nRows, value ?? DBNull.Value, dbType);
+							else
+								p = Parameter(baseParameters[i].ParameterName + nRows, value ?? DBNull.Value/*, dbType*/);
 
 							parameters[n + i] = p;
 							hasValue  [n + i] = true;
@@ -3058,7 +3071,8 @@ namespace BLToolkit.Data
 		/// <seealso cref="ExecuteScalar{T}(ScalarSourceType, NameOrIndexParameter)"/>
 		public T ExecuteScalar<T>()
 		{
-			return (T)_mappingSchema.ConvertChangeType(ExecuteScalar(), typeof(T));
+			var value = _mappingSchema.ConvertChangeType(ExecuteScalar(), typeof(T));
+			return value == null && typeof(T).IsEnum ? default(T) : (T)value;
 		}
 
 		/// <summary>
@@ -4428,8 +4442,9 @@ namespace BLToolkit.Data
 			}
 			catch (Exception ex)
 			{
-				if (res is IDisposable)
-					((IDisposable)res).Dispose();
+			    var disposable = res as IDisposable;
+			    if (disposable != null)
+			        (disposable).Dispose();
 
 				HandleOperationException(operationType, ex);
 				throw;

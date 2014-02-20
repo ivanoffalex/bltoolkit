@@ -43,3 +43,9 @@ BLToolkit.2010.sln.docstates
 *.csproj.user
 UnitTests/BLToolkit.Linq.VisualState.xml
 UnitTests/Linq/UserDataProviders.txt
+!*.dll
+*.ncrunchsolution
+!*.exe
+!*.pdb
+BLToolkit.2012.opensdf
+ipch/examples.cpp-54293a33/examples.ipch

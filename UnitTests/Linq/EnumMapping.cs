@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-
+using System.Linq.Expressions;
+using BLToolkit.Data.DataProvider;
 using BLToolkit.Data.Linq;
 using BLToolkit.DataAccess;
 using BLToolkit.Mapping;
-
 using NUnit.Framework;
 
 namespace Data.Linq
@@ -713,7 +714,7 @@ namespace Data.Linq
 						TestField = VAL2
 					});
 
-					Assert.True(1 == db.GetTable<TestTable2>().Where(r => r.Id == RID && new[] { TestEnum2.Value2 }.Contains(r.TestField)).Count());
+					Assert.That(db.GetTable<TestTable2>().Where(r => r.Id == RID && new[] { TestEnum2.Value2 }.Contains(r.TestField)).Count(), Is.EqualTo(1));
 				}
 			});
 		}
@@ -1111,6 +1112,52 @@ namespace Data.Linq
 			});
 		}
 
+		[Test]
+		public void EnumMapCustomPredicate1([DataContexts] string context)
+		{
+			using (var db = GetDataContext(context))
+			{
+				using (new Cleaner(db))
+				{
+					db.GetTable<RawTable>().Insert(() => new RawTable
+					{
+						Id = RID,
+						TestField = VAL2
+					});
+
+					var entityParameter = Expression.Parameter(typeof(TestTable1), "entity"); // parameter name required for BLToolkit
+					var filterExpression = Expression.Equal(Expression.Field(entityParameter, "TestField"), Expression.Constant(TestEnum1.Value2));
+					var filterPredicate = Expression.Lambda<Func<TestTable1, bool>>(filterExpression, entityParameter);
+					var result = db.GetTable<TestTable1>().Where(filterPredicate).ToList();
+
+					Assert.AreEqual(1, result.Count);
+				}
+			}
+		}
+
+		[Test]
+		public void EnumMapCustomPredicate2([DataContexts] string context)
+		{
+			using (var db = GetDataContext(context))
+			{
+				using (new Cleaner(db))
+				{
+					db.GetTable<RawTable>().Insert(() => new RawTable
+					{
+						Id = RID,
+						TestField = VAL2
+					});
+
+					var entityParameter = Expression.Parameter(typeof(TestTable2), "entity"); // parameter name required for BLToolkit
+					var filterExpression = Expression.Equal(Expression.Field(entityParameter, "TestField"), Expression.Constant(TestEnum2.Value2));
+					var filterPredicate = Expression.Lambda<Func<TestTable2, bool>>(filterExpression, entityParameter);
+					var result = db.GetTable<TestTable2>().Where(filterPredicate).ToList();
+
+					Assert.AreEqual(1, result.Count);
+				}
+			}
+		}
+
 		[TableName("LinqDataTypes")]
 		class TestTable3
 		{
@@ -1215,6 +1262,271 @@ namespace Data.Linq
 					Assert.NotNull(result[0].Target);
 					Assert.AreEqual(10, result[0].Target.Value.TargetID);
 					Assert.AreEqual(TestEnum2.Value2, result[0].Target.Value.TargetType);
+				}
+			});
+		}
+
+		class NullableResult
+		{
+			public TestEnum1? Value;
+		}
+
+		[Test]
+		public void EnumMapSelectNull([DataContexts] string context)
+		{
+			using (var db = GetDataContext(context))
+			{
+				using (new Cleaner(db))
+				{
+					db.GetTable<RawTable>().Insert(() => new RawTable
+					{
+						Id = RID
+					});
+
+					var result = db.GetTable<TestTable1>()
+						.Where(r => r.Id == RID)
+						.Select(r => new NullableResult {Value = r.TestField })
+						.FirstOrDefault();
+
+					Assert.NotNull(result);
+					Assert.Null(result.Value);
+				}
+			}
+		}
+
+		private TestEnum1 Convert(TestEnum1 val)
+		{
+			return val;
+		}
+
+		[Test]
+		public void EnumMapSelectNull_Regression([DataContexts] string context)
+		{
+			using (var db = GetDataContext(context))
+			{
+				using (new Cleaner(db))
+				{
+					db.GetTable<RawTable>().Insert(() => new RawTable
+					{
+						Id = RID,
+						TestField = VAL2
+					});
+
+					var result = db.GetTable<TestTable1>()
+						.Where(r => r.Id == RID)
+						.Select(r => new NullableResult { Value = Convert(r.TestField) })
+						.FirstOrDefault();
+
+					Assert.NotNull(result);
+					Assert.That(result.Value, Is.EqualTo(TestEnum1.Value2));
+				}
+			}
+		}
+
+		[Flags]
+		enum TestFlag
+		{
+			Value1 = 0x1,
+			Value2 = 0x2
+		}
+
+		[TableName("LinqDataTypes")]
+		class TestTable5
+		{
+			public int      ID;
+			public TestFlag IntValue;
+		}
+
+		[Test]
+		public void TestFlagEnum([DataContexts(ProviderName.Access)] string context)
+		{
+			using (var db = GetDataContext(context))
+			{
+				var result =
+					from t in db.GetTable<TestTable5>()
+					where (t.IntValue & TestFlag.Value1) != 0
+					select t;
+
+				var sql = result.ToString();
+
+				Assert.That(sql, Is.Not.Contains("Convert"));
+			}
+		}
+
+		[Test]
+		public void EnumMapContainsList1()
+		{
+			ForEachProvider(db =>
+			{
+				using (new Cleaner(db))
+				{
+					db.GetTable<RawTable>().Insert(() => new RawTable
+					{
+						Id = RID,
+						TestField = VAL2
+					});
+
+					var set = new HashSet<TestEnum1>();
+					set.Add(TestEnum1.Value2);
+
+					Assert.That(db.GetTable<TestTable1>()
+						.Where(r => r.Id == RID && set.Contains(r.TestField)).Count(), Is.EqualTo(1));
+					Assert.That(db.GetTable<TestTable1>()
+						.Where(r => r.Id == RID && !set.Contains(r.TestField)).Count(), Is.EqualTo(0));
+				}
+			});
+		}
+
+		[Test]
+		public void EnumMapContainsList2()
+		{
+			ForEachProvider(db =>
+			{
+				using (new Cleaner(db))
+				{
+					db.GetTable<RawTable>().Insert(() => new RawTable
+					{
+						Id = RID,
+						TestField = VAL2
+					});
+
+					var set = new HashSet<TestEnum2>();
+					set.Add(TestEnum2.Value2);
+
+					Assert.That(db.GetTable<TestTable2>().Where(r => r.Id == RID && set.Contains(r.TestField)).Count(), Is.EqualTo(1));
+					Assert.That(db.GetTable<TestTable2>().Where(r => r.Id == RID && !set.Contains(r.TestField)).Count(), Is.EqualTo(0));
+				}
+			});
+		}
+
+		[Test]
+		public void EnumMapContainsList3()
+		{
+			ForEachProvider(db =>
+			{
+				using (new Cleaner(db))
+				{
+					db.GetTable<RawTable>().Insert(() => new RawTable
+					{
+						Id = RID,
+						TestField = VAL2
+					});
+
+					var set = new HashSet<TestEnum1?>();
+					set.Add(TestEnum1.Value2);
+
+					Assert.That(db.GetTable<NullableTestTable1>()
+						.Where(r => r.Id == RID && set.Contains(r.TestField)).Count(), Is.EqualTo(1));
+					Assert.That(db.GetTable<NullableTestTable1>()
+						.Where(r => r.Id == RID && !set.Contains(r.TestField)).Count(), Is.EqualTo(0));
+				}
+			});
+		}
+
+		[Test]
+		public void EnumMapContainsList4()
+		{
+			ForEachProvider(db =>
+			{
+				using (new Cleaner(db))
+				{
+					db.GetTable<RawTable>().Insert(() => new RawTable
+					{
+						Id = RID,
+						TestField = VAL2
+					});
+
+					var set = new HashSet<TestEnum2?>();
+					set.Add(TestEnum2.Value2);
+
+					Assert.That(db.GetTable<NullableTestTable2>()
+						.Where(r => r.Id == RID && set.Contains(r.TestField)).Count(), Is.EqualTo(1));
+					Assert.That(db.GetTable<NullableTestTable2>()
+						.Where(r => r.Id == RID && !set.Contains(r.TestField)).Count(), Is.EqualTo(0));
+				}
+			});
+		}
+
+		[Test]
+		public void EnumMapIntermediateObject1()
+		{
+			ForEachProvider(db =>
+			{
+				using (new Cleaner(db))
+				{
+					db.GetTable<RawTable>().Insert(() => new RawTable
+					{
+						Id = RID,
+						TestField = VAL2
+					});
+
+					Assert.That(
+						db.GetTable<TestTable1>()
+						.Select(r => new {r.Id, r.TestField})
+						.Where(r => r.Id == RID && r.TestField == TestEnum1.Value2).Count(), Is.EqualTo(1));
+				}
+			});
+		}
+
+		//////[Test]
+		public void EnumMapIntermediateObject2()
+		{
+			ForEachProvider(db =>
+			{
+				using (new Cleaner(db))
+				{
+					db.GetTable<RawTable>().Insert(() => new RawTable
+					{
+						Id = RID,
+						TestField = VAL2
+					});
+
+					Assert.That(
+						db.GetTable<TestTable2>()
+						.Select(r => new { r.Id, r.TestField })
+						.Where(r => r.Id == RID && r.TestField == TestEnum2.Value2).Count(), Is.EqualTo(1));
+				}
+			});
+		}
+
+		[Test]
+		public void EnumMapIntermediateObject3()
+		{
+			ForEachProvider(db =>
+			{
+				using (new Cleaner(db))
+				{
+					db.GetTable<RawTable>().Insert(() => new RawTable
+					{
+						Id = RID,
+						TestField = VAL2
+					});
+
+					Assert.That(
+						db.GetTable<NullableTestTable1>()
+						.Select(r => new { r.Id, r.TestField })
+						.Where(r => r.Id == RID && r.TestField == TestEnum1.Value2).Count(), Is.EqualTo(1));
+				}
+			});
+		}
+
+		//////[Test]
+		public void EnumMapIntermediateObject4()
+		{
+			ForEachProvider(db =>
+			{
+				using (new Cleaner(db))
+				{
+					db.GetTable<RawTable>().Insert(() => new RawTable
+					{
+						Id = RID,
+						TestField = VAL2
+					});
+
+					Assert.That(
+						db.GetTable<NullableTestTable2>()
+						.Select(r => new { r.Id, r.TestField })
+						.Where(r => r.Id == RID && r.TestField == TestEnum2.Value2).Count(), Is.EqualTo(1));
 				}
 			});
 		}

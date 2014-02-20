@@ -242,6 +242,13 @@ namespace BLToolkit.Mapping.Fluent
 			this.EachChilds(m => m.Nullable(propName, isNullable));
 		}
 
+        void IFluentMap.LazyInstance(string propName, bool isLazy)
+		{
+			var member = this.GetMemberExtension(propName);
+			member.Attributes.Add(Attributes.LazyInstance.IsLazyInstance, this.ToString(isLazy));
+            this.EachChilds(m => m.LazyInstance(propName, isLazy));
+		}
+        
 		/// <summary>
 		/// Nulls the value.
 		/// </summary>
@@ -251,7 +258,7 @@ namespace BLToolkit.Mapping.Fluent
 		void IFluentMap.NullValue<TR>(string propName, TR value)
 		{
 			var member = this.GetMemberExtension(propName);
-			member.Attributes.Add(Attributes.NullValue, Convert.ToString(value));
+			member.Attributes.Add(Attributes.NullValue, Equals(value, null) ? null : Convert.ToString(value));
 			this.EachChilds(m => m.NullValue(propName, value));
 		}
 
@@ -305,8 +312,8 @@ namespace BLToolkit.Mapping.Fluent
 			attributeExtension.Values.Add(TypeExtension.AttrName.DestinationType, destinationType.AssemblyQualifiedName);
 			attrs.Add(attributeExtension);
 
-			this.FillRelationIndex(slaveIndex, attributeExtension, TypeExtension.NodeName.SlaveIndex);
-			this.FillRelationIndex(masterIndex, attributeExtension, TypeExtension.NodeName.MasterIndex);
+			FillRelationIndex(slaveIndex, attributeExtension, TypeExtension.NodeName.SlaveIndex);
+			FillRelationIndex(masterIndex, attributeExtension, TypeExtension.NodeName.MasterIndex);
 			this.EachChilds(m => m.Relation(propName, destinationType, slaveIndex, masterIndex));
 		}
 

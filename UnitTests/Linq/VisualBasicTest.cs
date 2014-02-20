@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Linq;
+
 using BLToolkit.Data.DataProvider;
-using Data.Linq.Model;
+
 using NUnit.Framework;
 
 namespace Data.Linq
 {
+	using Model;
+
 	[TestFixture]
 	public class VisualBasicTest : TestBase
 	{
@@ -48,7 +51,7 @@ namespace Data.Linq
 		}
 
 		[Test]
-		public void SearchCondition2()
+		public void SearchCondition2([IncludeDataContexts("Northwind")] string context)
 		{
 			using (var db = new NorthwindDB())
 			{

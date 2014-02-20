@@ -3,8 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
+using BLToolkit.Data.Linq;
+using BLToolkit.DataAccess;
 
 namespace BLToolkit.Data
 {
@@ -245,7 +248,9 @@ namespace BLToolkit.Data
 
 		static DbManager()
 		{
+			AddDataProvider(new Sql2012DataProvider());
 			AddDataProvider(new Sql2008DataProvider());
+			AddDataProvider(new Sql2005DataProvider());
 			AddDataProvider(new SqlDataProvider());
 			AddDataProvider(new Sql2000DataProvider());
 			AddDataProvider(new AccessDataProvider());
@@ -338,13 +343,47 @@ namespace BLToolkit.Data
 
 				if (css != null && !string.IsNullOrEmpty(css.ProviderName))
 				{
-					// This hack should be redone.
-					//
-					var provider = css.ProviderName == "System.Data.SqlClient" ?
-						configurationString.IndexOf("2008") >= 0 ? "MSSQL2008" :
-						configurationString.IndexOf("2000") >= 0 ? "MSSQL2000" :
-							css.ProviderName :
-						css.ProviderName;
+					string provider = null;
+
+					if (css.ProviderName == "System.Data.SqlClient")
+					{
+						try
+						{
+							using (SqlConnection sqlConnection = new SqlConnection(css.ConnectionString))
+							{
+								sqlConnection.Open();
+
+								string serverVersion = sqlConnection.ServerVersion;
+								string[] serverVersionDetails = serverVersion.Split(new string[] {"."},
+																					StringSplitOptions.None);
+
+								int versionNumber = int.Parse(serverVersionDetails[0]);
+
+								switch (versionNumber)
+								{
+									case  8: provider = "MSSQL2000"; break;
+									case  9: provider = "MSSQL2005"; break; //MSSQL 2005 -> Can the same as 2008
+									case 10: provider = "MSSQL2008"; break;
+									case 11: provider = "MSSQL2012"; break;
+									default: provider = "MSSQL2008"; break;
+								}
+							}
+						}
+						catch (Exception)
+						{}
+					}
+
+					if (provider == null)
+					{
+						// This hack should be redone.
+						//
+						provider = css.ProviderName == "System.Data.SqlClient" ?
+							configurationString.IndexOf("2012") >= 0 ? "MSSQL2012" :
+							configurationString.IndexOf("2008") >= 0 ? "MSSQL2008" :
+							configurationString.IndexOf("2000") >= 0 ? "MSSQL2000" :
+								css.ProviderName :
+								css.ProviderName;
+					}
 
 					dp = _dataProviderNameList[provider];
 				}
@@ -582,6 +621,30 @@ namespace BLToolkit.Data
 				_dataProviderTypeList[dataProvider.ConnectionType] = dataProvider;
 			}
 		}
+
+        public static void SetMappingTypeSequence<T>(string sequenceName)
+        {
+            foreach (var providerBase in _dataProviderNameList.Values)
+            {
+                if (providerBase.MappingSchema != null)
+                {
+                    providerBase.MappingSchema.SetMappingTypeSequence(typeof(T), sequenceName);
+                }
+            }
+            Query<T>.ClearCache();
+            SqlQueryBase.ClearCache();
+        }
+
+	    public static void SetMappingTypeOwner<T>(string ownerName)
+	    {
+	        foreach (var providerBase in _dataProviderNameList.Values)
+	        {
+                if (providerBase.MappingSchema != null)
+	                providerBase.MappingSchema.MetadataProvider.SetOwnerName(typeof(T), ownerName);
+	        }
+            Query<T>.ClearCache();
+            SqlQueryBase.ClearCache();
+	    }
 
 		/// <summary>
 		/// Adds a new data provider witch a specified name.

@@ -186,7 +186,7 @@ namespace BLToolkit.Data.Linq.Builder
 
 				SqlQuery.From.Table(SqlTable);
 
-				var args = mc.Arguments.Select(a => builder.ConvertToSql(this, a));
+				var args = mc.Arguments.Select(a => builder.ConvertToSql(this, a, false));
 
 				attr.SetTable(SqlTable, mc.Method, mc.Arguments, args);
 
@@ -929,7 +929,7 @@ namespace BLToolkit.Data.Linq.Builder
 
 								buildInfo.IsAssociationBuilt = true;
 
-								if (tableLevel.IsNew)
+								if (tableLevel.IsNew || buildInfo.CopyTable)
 									association.ParentAssociationJoin.IsWeak = true;
 
 								return Builder.BuildSequence(new BuildInfo(buildInfo, expr));
@@ -938,7 +938,10 @@ namespace BLToolkit.Data.Linq.Builder
 						else
 						{
 							var association = GetAssociation(levelExpression, level);
-							((AssociatedTableContext)association.Table).ParentAssociationJoin.IsWeak = false;
+							var paj         = ((AssociatedTableContext)association.Table).ParentAssociationJoin;
+
+							paj.IsWeak = paj.IsWeak && buildInfo.CopyTable;
+
 							return association.Table.GetContext(expression, level + 1, buildInfo);
 						}
 					}
@@ -1032,7 +1035,7 @@ namespace BLToolkit.Data.Linq.Builder
 						{
 							foreach (var field in SqlTable.Fields.Values)
 							{
-								if (TypeHelper.Equals(field.MemberMapper.MapMemberInfo.MemberAccessor.MemberInfo, memberExpression.Member))
+								if (TypeHelper.Equals(field.MemberMapper.MapMemberInfo.MemberAccessor.MemberInfo, memberExpression.Member, SqlTable.ObjectType))
 								{
 									if (field.MemberMapper is MemberMapper.ComplexMapper &&
 										field.MemberMapper.MemberName.IndexOf('.') > 0)

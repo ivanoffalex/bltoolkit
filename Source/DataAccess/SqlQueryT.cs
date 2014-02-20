@@ -1,13 +1,12 @@
-using System;
 using System.Collections.Generic;
-
-using BLToolkit.Data;
-using BLToolkit.Mapping;
-using BLToolkit.Reflection.Extension;
 
 namespace BLToolkit.DataAccess
 {
-	public class SqlQuery<T> : SqlQueryBase
+	using Data;
+	using Mapping;
+	using Reflection.Extension;
+
+	public class SqlQuery<T> : SqlQueryBase, ISqlQueryT<T>
 	{
 		#region Constructors
 
@@ -149,6 +148,16 @@ namespace BLToolkit.DataAccess
 				.ExecuteNonQuery();
 		}
 
+        public virtual object InsertWithIdentity(DbManager db, T obj)
+        {
+            return base.InsertWithIdentity(db, obj);
+        }
+
+        public virtual object InsertWithIdentity(T obj)
+        {
+            return base.InsertWithIdentity(obj);
+        }
+
 		public virtual int Insert(T obj)
 		{
 			var db = GetDbManager();
@@ -164,9 +173,22 @@ namespace BLToolkit.DataAccess
 			}
 		}
 
+        public virtual int InsertBatchWithIdentity(DbManager db, int maxBatchSize, IEnumerable<T> list)
+        {
+            var query = GetSqlQueryInfo(db, typeof(T), "InsertBatchWithIdentity");
+
+            return db.DataProvider.InsertBatchWithIdentity(
+                db,
+                query.QueryText,
+                list,
+                query.GetMemberMappers(),
+                maxBatchSize,
+                obj => query.GetParameters(db, obj));
+        }
+
 		public virtual int Insert(DbManager db, int maxBatchSize, IEnumerable<T> list)
 		{
-			var query = GetSqlQueryInfo(db, typeof(T), "InsertBatch");
+            var query = GetSqlQueryInfo(db, typeof(T), "InsertBatch");
 
 			return db.DataProvider.InsertBatch(
 				db,

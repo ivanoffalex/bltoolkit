@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Text;
 
-using BLToolkit.Reflection;
-
 namespace BLToolkit.Data.Sql.SqlProvider
 {
 	using DataProvider;
+	using Reflection;
 
 	public class SQLiteSqlProvider : BasicSqlProvider
 	{
@@ -128,7 +127,7 @@ namespace BLToolkit.Data.Sql.SqlProvider
 				base.BuildFromClause(sb);
 		}
 
-		public override void BuildValue(StringBuilder sb, object value)
+		public override void BuildValue(StringBuilder sb, object value, SqlParameter sqlParameter = null)
 		{
 			if (value is Guid)
 			{

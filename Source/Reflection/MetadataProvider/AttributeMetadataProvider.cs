@@ -2,6 +2,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using BLToolkit.Data.Sql.SqlProvider;
+
+using BLToolkit.TypeBuilder;
 
 namespace BLToolkit.Reflection.MetadataProvider
 {
@@ -169,6 +172,58 @@ namespace BLToolkit.Reflection.MetadataProvider
 			}
 
 			return base.GetMapIgnore(typeExtension, member, out isSet) || member.GetAttribute<AssociationAttribute>() != null;
+		}
+
+		#endregion
+
+		#region GetMapField
+
+		public override MapFieldAttribute GetMapField(TypeExtension typeExtension, MemberAccessor member, out bool isSet)
+		{
+			var attr = member.GetAttribute<MapFieldAttribute>() ?? (MapFieldAttribute)TypeHelper.GetFirstAttribute(member.Type, typeof(MapFieldAttribute));
+
+			if (attr != null)
+			{
+				isSet = true;
+				return attr;
+			}
+
+			return base.GetMapField(typeExtension, member, out isSet);
+		}
+
+		#endregion
+
+		#region GetDbType
+
+		[CLSCompliant(false)]
+		public override DbTypeAttribute GetDbType(TypeExtension typeExtension, MemberAccessor member, out bool isSet)
+		{
+			var attr = member.GetAttribute<DbTypeAttribute>() ?? (DbTypeAttribute)TypeHelper.GetFirstAttribute(member.Type, typeof(DbTypeAttribute));
+
+			if (attr != null)
+			{
+				isSet = true;
+				return attr;
+			}
+
+			return base.GetDbType(typeExtension, member, out isSet);
+		}
+
+		#endregion
+
+		#region GetPrimaryKey
+
+		public override PrimaryKeyAttribute GetPrimaryKey(TypeExtension typeExtension, MemberAccessor member, out bool isSet)
+		{
+			var attr = member.GetAttribute<PrimaryKeyAttribute>() ?? (PrimaryKeyAttribute)TypeHelper.GetFirstAttribute(member.Type, typeof(PrimaryKeyAttribute));
+
+			if (attr != null)
+			{
+				isSet = true;
+				return attr;
+			}
+
+			return base.GetPrimaryKey(typeExtension, member, out isSet);
 		}
 
 		#endregion
@@ -434,6 +489,31 @@ namespace BLToolkit.Reflection.MetadataProvider
 
 		#endregion
 
+		#region GetLazyInstance
+
+		public override bool GetLazyInstance(MappingSchema mappingSchema, TypeExtension typeExtension, MemberAccessor member, out bool isSet)
+		{
+			var attr1 = member.GetAttribute<LazyInstanceAttribute>();
+
+			if (attr1 != null)
+			{
+				isSet = true;
+				return attr1.IsLazy;
+			}
+
+			attr1 = (LazyInstanceAttribute)TypeHelper.GetFirstAttribute(member.MemberInfo.DeclaringType, typeof(LazyInstanceAttribute));
+
+			if (attr1 != null)
+			{
+				isSet = true;
+				return attr1.IsLazy;
+			}
+
+			return base.GetLazyInstance(mappingSchema, typeExtension, member, out isSet);
+		}
+
+		#endregion
+
 		#region GetNullValue
 
 		private static object CheckNullValue(object value, MemberAccessor member)
@@ -514,7 +594,13 @@ namespace BLToolkit.Reflection.MetadataProvider
 
 		public override string GetOwnerName(Type type, ExtensionList extensions, out bool isSet)
 		{
-			var attrs = type.GetCustomAttributes(typeof(TableNameAttribute), true);
+		    if (_typesOwners.ContainsKey(type))
+		    {
+		        isSet = true;
+		        return _typesOwners[type];
+		    }
+
+		    var attrs = type.GetCustomAttributes(typeof(TableNameAttribute), true);
 
 			if (attrs.Length > 0)
 			{
@@ -526,7 +612,15 @@ namespace BLToolkit.Reflection.MetadataProvider
 			return base.GetOwnerName(type, extensions, out isSet);
 		}
 
-		#endregion
+        private readonly Dictionary<Type, string> _typesOwners = new Dictionary<Type, string>(); 
+
+	    public override void SetOwnerName(Type type, string ownerName)
+	    {
+	        _typesOwners[type] = ownerName;
+	        base.SetOwnerName(type, ownerName);
+	    }
+
+	    #endregion
 
 		#region GetTableName
 
@@ -562,6 +656,19 @@ namespace BLToolkit.Reflection.MetadataProvider
 		}
 
 		#endregion
+
+        public override string GetSequenceName(TypeExtension typeExtension, MemberAccessor member, out bool isSet)
+        {
+            var attr = member.GetAttribute<SequenceNameAttribute>();
+
+            if (attr != null)
+            {
+                isSet = true;
+                return attr.SequenceName;
+            }
+
+            return base.GetSequenceName(typeExtension, member, out isSet);
+        }
 
 		#region GetNonUpdatableFlag
 
